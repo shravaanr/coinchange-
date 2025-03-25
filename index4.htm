@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Coin Change with GSAP Animation</title>
+  <style>
+    /* Reset & Fullscreen */
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+    }
+
+    /* Glassmorphism Overlay */
+    #overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      width: 420px;
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      text-align: center;
+      color: #fff;
+      transition: 0.5s ease;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      font-size: 32px;
+      letter-spacing: 1px;
+    }
+
+    input, button {
+      width: 90%;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      transition: 0.3s;
+    }
+
+    input {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    button {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #45a049;
+      transform: scale(1.05);
+    }
+
+    .result {
+      margin-top: 15px;
+      font-size: 20px;
+      color: #fff;
+    }
+
+    @media (max-width: 768px) {
+      #overlay {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Glassmorphism Form -->
+<div id="overlay">
+  <h2 class="gsap-text">3D Coin Change Problem</h2>
+  
+  <label class="gsap-text">Amount:</label>
+  <input type="number" id="amount" placeholder="Enter amount" min="1">
+  
+  <label class="gsap-text">Denominations (comma separated):</label>
+  <input type="text" id="coins" placeholder="e.g., 1, 5, 10, 25">
+  
+  <button onclick="generateCoins()">Get Minimum Coins</button>
+
+  <div class="result" id="result"></div>
+</div>
+
+<!-- Three.js & GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<script>
+  let scene, camera, renderer, mesh, coins = [];
+
+  // Initialize Three.js Scene
+  function init() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Set Camera Position
+    camera.position.set(0, 15, 60);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0xffd700, 2, 100);
+    pointLight.position.set(30, 40, 50);
+    scene.add(pointLight);
+
+    // Background Mesh Animation
+    const bgGeometry = new THREE.PlaneGeometry(150, 150, 32, 32);
+    const bgMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00ffff,
+      wireframe: true
+    });
+
+    mesh = new THREE.Mesh(bgGeometry, bgMaterial);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = -15;
+    scene.add(mesh);
+
+    animate();
+  }
+
+  // Coin Creation with GSAP Animation
+  function createCoin(x, y, denomination) {
+    const geometry = new THREE.CylinderGeometry(4, 4, 1, 32);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0xffd700,
+      metalness: 0.9,
+      roughness: 0.3,
+    });
+
+    const coin = new THREE.Mesh(geometry, material);
+    coin.position.set(x, y, -10);
+    coin.rotation.x = Math.PI / 2;
+
+    // GSAP animation for the coin
+    gsap.from(coin.scale, { x: 0, y: 0, z: 0, duration: 0.8, ease: "back.out(1.7)" });
+
+    coins.push(coin);
+    scene.add(coin);
+  }
+
+  // Clear Previous Coins
+  function clearCoins() {
+    coins.forEach(coin => scene.remove(coin));
+    coins = [];
+  }
+
+  // Coin Change Algorithm
+  function generateCoins() {
+    const amount = parseInt(document.getElementById('amount').value);
+    const denominations = document.getElementById('coins').value
+      .split(',')
+      .map(c => parseInt(c.trim()))
+      .sort((a, b) => b - a);
+
+    if (isNaN(amount) || amount <= 0 || denominations.some(isNaN)) {
+      alert("Please enter valid inputs.");
+      return;
+    }
+
+    let remaining = amount;
+    let resultText = "";
+    let coinCount = {};
+
+    clearCoins();
+
+    let xPos = -20;
+    let yPos = -5;
+
+    for (let coin of denominations) {
+      if (remaining >= coin) {
+        let count = Math.floor(remaining / coin);
+        remaining -= count * coin;
+        coinCount[coin] = count;
+
+        for (let i = 0; i < count; i++) {
+          createCoin(xPos, yPos, coin);
+          xPos += 12;
+          if (xPos > 20) {
+            xPos = -20;
+            yPos -= 5;
+          }
+        }
+      }
+    }
+
+    if (remaining > 0) {
+      resultText = `<p>Cannot make the amount with given denominations.</p>`;
+    } else {
+      resultText = `<p>Minimum Coins Required:</p>`;
+      for (const [coin, count] of Object.entries(coinCount)) {
+        resultText += `<p>${count} × ${coin} value coin</p>`;
+      }
+    }
+
+    document.getElementById("result").innerHTML = resultText;
+
+    // GSAP Animations on Text
+    gsap.from(".result p", { 
+      opacity: 0, 
+      y: 30, 
+      duration: 0.8, 
+      stagger: 0.2, 
+      ease: "power2.out" 
+    });
+  }
+
+  // Animation Loop
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+
+    mesh.rotation.z += 0.001;
+    mesh.position.y += Math.sin(Date.now() * 0.001) * 0.05;
+  }
+
+  // Resize handler
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // Initialize
+  init();
+</script>
+
+</body>
+</html>
